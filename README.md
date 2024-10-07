@@ -83,5 +83,9 @@ To run tests using Forge:
    ```
    forge test
    ```
+4. Deploy
+   ```
+   forge script script/Deploy.s.sol:Deploy --rpc-url https://rpc.ankr.com/eth_sepolia --broadcast --slow
+   ```  
 
 For more information on Forge and its features, refer to the [Forge Book](https://book.getfoundry.sh/).
