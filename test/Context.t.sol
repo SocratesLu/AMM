@@ -29,17 +29,17 @@ contract Context is Test {
     address public alice = address(2);
     address public ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    /*
     function setUp() public {
         createAll();
     }
+    */
 
     function createAll() public {
         vm.startPrank(owner);
         createVault();
         createWeightedPoolFactory();
         vm.stopPrank();
-
-        console.log("create step 1");
 
         vm.startPrank(alice);
         createPool();
@@ -79,7 +79,6 @@ contract Context is Test {
 
         // 创建池子
         pool = WeightedPool(factory.createPool(tokens, weights, 3e15)); // 0.3% swap fee
-        console.log("create step 2");
         (address[] memory tokensPool, uint256[] memory balancesPool) = pool.getTokensData();
     }
 

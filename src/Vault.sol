@@ -67,8 +67,6 @@ contract Vault is IVault, Ownable2Step, VaultFunding, VaultSwap {
 
     function getPoolTokensData(address pool) external view override returns (address[] memory tokens, uint256[] memory balances) {
         PoolTokenInfo memory poolInfo = getPoolTokens(pool);
-        console.log("tokenlen", poolInfo.tokens.length);
-        console.log("balanceslen", poolInfo.balances.length);
         return (poolInfo.tokens, poolInfo.balances);
     }
 

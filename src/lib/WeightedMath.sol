@@ -83,7 +83,7 @@ library WeightedMath {
         amountIn = (balanceIn.mulUp(ratio))  * FixedPoint.ONE /(FixedPoint.ONE - swapFee);
     }
 
-    function _calculateInvariant(uint256[] memory scaled18Amounts, uint256[] memory weights) internal pure returns (uint256 invariant) {
+    function _calculateInvariantUp(uint256[] memory scaled18Amounts, uint256[] memory weights) internal pure returns (uint256 invariant) {
         /**********************************************************************************************
         // invariant               _____                                                             //
         // wi = weight index i      | |      wi                                                      //
@@ -95,6 +95,22 @@ library WeightedMath {
         invariant = FixedPoint.ONE;
         for (uint256 i = 0; i < scaled18Amounts.length; ++i) {
             invariant = invariant.mulUp(scaled18Amounts[i].powUp(weights[i]));
+        }
+        if (invariant == 0) revert ZeroInvariant();
+    }
+
+     function _calculateInvariantDown(uint256[] memory scaled18Amounts, uint256[] memory weights) internal pure returns (uint256 invariant) {
+        /**********************************************************************************************
+        // invariant               _____                                                             //
+        // wi = weight index i      | |      wi                                                      //
+        // bi = balance index i     | |  bi ^   = i                                                  //
+        // i = invariant                                                                             //
+        **********************************************************************************************/
+        if (scaled18Amounts.length != weights.length) revert ArrayLengthMismatch();
+        
+        invariant = FixedPoint.ONE;
+        for (uint256 i = 0; i < scaled18Amounts.length; ++i) {
+            invariant = invariant.mulDown(scaled18Amounts[i].powDown(weights[i]));
         }
         if (invariant == 0) revert ZeroInvariant();
     }

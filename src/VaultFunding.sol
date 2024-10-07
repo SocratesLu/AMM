@@ -59,18 +59,10 @@ contract VaultFunding is VaultStorage, Test {
 
         lpTokens = pool.onAddLiquidity(request);
 
-        console.log("lpTokens", lpTokens);
-
         if (lpTokens < minToMint) revert InsufficientLPTokensMinted();
         }
 
         // Transfer tokens and update balances
-        if (ethAmount > 0) {
-            if (msg.value < ethAmount) revert InsufficientETHSent();
-            WETH.deposit{value: ethAmount}();
-        }
-
-        console.log("deposit");
 
         for (uint256 i = 0; i < tokenInfos.tokens.length; i++) {
             address tokenAddress = tokenInfos.tokens[i];
@@ -81,12 +73,8 @@ contract VaultFunding is VaultStorage, Test {
                 IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
             }
 
-            console.log("transfer");
-
             poolTokenBalances[_pool][tokenAddress] += amount;  // Update the balance in Vault storage
         }
-
-        console.log("update balance");
 
         // Refund excess ETH if any
         if (msg.value > ethAmount) {
@@ -113,7 +101,6 @@ contract VaultFunding is VaultStorage, Test {
         IBasePool pool = IBasePool(_pool);
         PoolTokenInfo memory tokenInfos = getPoolTokens(_pool);
 
-
         {
         if (minAmountsOut.length != tokenInfos.tokens.length) revert AmountLengthMismatch();
 
@@ -121,7 +108,7 @@ contract VaultFunding is VaultStorage, Test {
 
         for (uint256 i = 0; i < tokenInfos.tokens.length; i++) {
             address tokenAddress = tokenInfos.tokens[i];
-            uint8 decimals = IERC20Metadata(tokenAddress).decimals();
+            uint8 decimals = tokenAddress == ETH_ADDRESS ? 18 : IERC20Metadata(tokenAddress).decimals();
             scaled18Balances[i] = tokenInfos.balances[i].normalizeAmount(decimals);
         }
 
@@ -139,7 +126,7 @@ contract VaultFunding is VaultStorage, Test {
         amounts = new uint256[](tokenInfos.tokens.length);
         for (uint256 i = 0; i < tokenInfos.tokens.length; i++) {
             address tokenAddress = tokenInfos.tokens[i];
-            uint8 decimals = IERC20Metadata(tokenAddress).decimals();
+            uint8 decimals = tokenAddress == ETH_ADDRESS ? 18 : IERC20Metadata(tokenAddress).decimals();
             amounts[i] = scaled18AmountsOut[i].denormalizeAmount(decimals);
             if (amounts[i] < minAmountsOut[i]) revert InsufficientOutputAmount();
         }
@@ -162,7 +149,6 @@ contract VaultFunding is VaultStorage, Test {
             poolTokenBalances[_pool][tokenAddress] -= amount;  // Update the balance in Vault storage
 
             if (tokenAddress == ETH_ADDRESS) {
-                WETH.withdraw(amount);
                 (bool success, ) = msg.sender.call{value: amount}("");
                 if (!success) revert ETHTransferFailed();
             } else {

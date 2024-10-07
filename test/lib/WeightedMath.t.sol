@@ -54,8 +54,18 @@ contract WeightedMathHelper is Test {
         return WeightedMath._calcInGivenOut(balanceIn, weightIn, balanceOut, weightOut, amountOut, swapFee);
     }
 
-    function calculateInvariant(uint256[] memory scaled18Amounts, uint256[] memory weights) external pure returns (uint256) {
-        return WeightedMath._calculateInvariant(scaled18Amounts, weights);
+    function calculateInvariantUp(uint256[] memory scaled18Amounts, uint256[] memory weights) external pure returns (uint256) {
+        console.log("scaled18Amounts", scaled18Amounts[0]);
+        console.log("scaled18Amounts", scaled18Amounts[1]);
+        console.log("scaled18Amounts", scaled18Amounts[2]);
+        console.log("weights", weights[0]);
+        console.log("weights", weights[1]);
+        console.log("weights", weights[2]);
+        return WeightedMath._calculateInvariantUp(scaled18Amounts, weights);
+    }
+
+    function calculateInvariantDown(uint256[] memory scaled18Amounts, uint256[] memory weights) external pure returns (uint256) {
+        return WeightedMath._calculateInvariantDown(scaled18Amounts, weights);
     }
 }
 
@@ -117,13 +127,20 @@ contract WeightedMathTest is Test {
         weights[1] = 30 * PRECISION / 100;
         weights[2] = 50 * PRECISION / 100;
 
-        uint256 invariant = helper.calculateInvariant(amounts, weights);
+        uint256 invariantUp = helper.calculateInvariantUp(amounts, weights);
+        uint256 invariantDown = helper.calculateInvariantDown(amounts, weights);
 
         // 手动计算过程:
-        // invariant = 100^0.2 * 200^0.3 * 300^0.5 ≈ 213.24
+        // invariant ≈ 100^0.2 * 200^0.3 * 300^0.5 ≈ 213.24
 
-        assertApproxEqRel(invariant, 213240467536790994340, PRECISION / 10000000); // 允许1e-7的误差
-        //console.log("invariant", invariant);
+        assertApproxEqRel(invariantUp, 213240467536803789133, PRECISION / 10000000); // 允许1e-7的误差
+        assertApproxEqRel(invariantDown, 213240467536790994340, PRECISION / 10000000); // 允许1e-7的误差
+        
+        // 确保Up版本的结果大于或等于Down版本
+        assertGe(invariantUp, invariantDown);
+
+        console.log("invariantUp", invariantUp);
+        console.log("invariantDown", invariantDown);
     }
 
     function test_MaxInRatio() public {
@@ -150,8 +167,8 @@ contract WeightedMathTest is Test {
         helper.calcInGivenOut(balanceIn, weightIn, balanceOut, weightOut, amountOut, swapFee);
     }
 
-    /*
-    function test_ZeroInvariant() public {
+
+    function test_ZeroInvariantDown() public {
         uint256[] memory amounts = new uint256[](3);
         amounts[0] = 0;
         amounts[1] = 0;
@@ -163,9 +180,8 @@ contract WeightedMathTest is Test {
         weights[2] = 50 * PRECISION;
 
         vm.expectRevert(WeightedMath.ZeroInvariant.selector);
-        helper.calculateInvariant(amounts, weights);
+        helper.calculateInvariantDown(amounts, weights);
     }
-    */
 
     function test_ArrayLengthMismatch() public {
         uint256[] memory amounts = new uint256[](3);
@@ -178,7 +194,9 @@ contract WeightedMathTest is Test {
         weights[1] = 30 * PRECISION;
 
         vm.expectRevert(WeightedMath.ArrayLengthMismatch.selector);
-        helper.calculateInvariant(amounts, weights);
+        helper.calculateInvariantDown(amounts, weights);
+        vm.expectRevert(WeightedMath.ArrayLengthMismatch.selector);
+        helper.calculateInvariantUp(amounts, weights);
     }
 
     // ========================TestFuzz================================
@@ -219,5 +237,32 @@ contract WeightedMathTest is Test {
     // 辅助函数：返回两个数中的较大值
     function max(uint256 a, uint256 b) internal pure returns (uint256) {
         return a > b ? a : b;
+    }
+
+    function testFuzz_CalculateInvariant(uint256[3] memory fuzzAmounts, uint64[3] memory fuzzWeights) public {
+        vm.assume(fuzzAmounts[0] > 1e6 && fuzzAmounts[0] <= 1e23);
+
+        vm.assume(fuzzWeights[0] > 1e16 && fuzzWeights[0] < 4e17);
+        vm.assume(fuzzWeights[1] > 1e16 && fuzzWeights[1] < 4e17);
+
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = fuzzAmounts[0];
+        amounts[1] = fuzzAmounts[0] * 2;
+        amounts[2] = fuzzAmounts[0] * 3;
+
+        uint256[] memory weights = new uint256[](3);
+        weights[0] = uint256(fuzzWeights[0]) ;
+        weights[1] = uint256(fuzzWeights[1]) ;
+        weights[2] = PRECISION - uint256(fuzzWeights[0]) - uint256(fuzzWeights[1]);
+
+        uint256 invariantUp = helper.calculateInvariantUp(amounts, weights);
+        uint256 invariantDown = helper.calculateInvariantDown(amounts, weights);
+
+        // 确保计算结果不为零
+        assertTrue(invariantUp > 0);
+        assertTrue(invariantDown > 0);
+
+        // 确保Up版本的结果大于或等于Down版本
+        assertGe(invariantUp, invariantDown);
     }
 }

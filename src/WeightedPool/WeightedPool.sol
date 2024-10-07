@@ -123,7 +123,7 @@ contract WeightedPool is ERC20, IBasePool {
     function onAddLiquidity(LiquidityRequest memory request) external override view returns (uint256 lpTokens) {
         if (request.scaled18AmountIn.length != weights.length) revert AmountsLengthMismatch();
 
-        uint256 invariantBefore = WeightedMath._calculateInvariant(request.tokenScaled18Amount, weights);
+        uint256 invariantBefore = WeightedMath._calculateInvariantUp(request.tokenScaled18Amount, weights);
         uint256 totalSupplyBefore = totalSupply();
 
         uint256 minNormalizedAmount = type(uint256).max;
@@ -141,7 +141,7 @@ contract WeightedPool is ERC20, IBasePool {
             newBalances[i] = request.tokenScaled18Amount[i] + request.scaled18AmountIn[i];
         }
 
-        uint256 invariantAfter = WeightedMath._calculateInvariant(newBalances, weights);
+        uint256 invariantAfter = WeightedMath._calculateInvariantDown(newBalances, weights);
 
         if (totalSupplyBefore == 0) {
             lpTokens = minNormalizedAmount; // initial liquidity
@@ -160,7 +160,7 @@ contract WeightedPool is ERC20, IBasePool {
 
         amounts = new uint256[](weights.length);
         for (uint256 i = 0; i < weights.length; i++) {
-            amounts[i] = request.tokenScaled18Amount[i] * ratio/ ONE;
+            amounts[i] = request.tokenScaled18Amount[i] * ratio / ONE;
         }
 
         return amounts;
