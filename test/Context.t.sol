@@ -8,6 +8,7 @@ import {WeightedPool} from "../src/WeightedPool/WeightedPool.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IWETH} from "../src/interfaces/IWETH.sol";  
 import {WETH9} from "../src/mocks/WETH9.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockToken is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
@@ -51,8 +52,20 @@ contract Context is Test {
         // 部署WETH
         weth = new WETH9();
         
-        // 部署Vault
-        vault = new Vault(address(weth));
+        // 部署Vault逻辑合约
+        Vault vaultImplementation = new Vault(address(weth));
+
+        // 准备初始化数据
+        bytes memory initData = abi.encodeWithSelector(
+            Vault.initialize.selector, 
+            owner  // 设置owner为初始所有者
+        );
+
+        // 部署代理合约
+        ERC1967Proxy vaultProxy = new ERC1967Proxy(address(vaultImplementation), initData);
+        
+        // 将代理合约地址转换为Vault接口
+        vault = Vault(payable(address(vaultProxy)));
     }
 
     function createWeightedPoolFactory() public {
