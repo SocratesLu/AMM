@@ -1,66 +1,85 @@
-## Foundry
+# Simple AMM with Vault-Pool Structure
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Part 1: Introduction
 
-Foundry consists of:
+This project implements a simple Automated Market Maker (AMM) with a vault-pool structure. To accommodate multi-token trading requirements, the pool utilizes Balancer's algorithm. The system is designed with future scalability in mind, allowing for potential iterations to support multiple pool types.
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+Key features:
+- Vault-pool architecture for enhanced security and flexibility
+- Multi-token support using Balancer's weighted pool algorithm
+- Upgradeable design for future improvements
 
-## Documentation
+## Part 2: Contract Structure
 
-https://book.getfoundry.sh/
+The AMM consists of three main components:
 
-## Usage
+1. **Vault**: 
+   - Acts as the central hub for all funds
+   - Serves as the entry point for user transactions
+   - Manages global system parameters and security features
 
-### Build
+2. **Pool**: 
+   - Implements trading algorithm logic
+   - Handles LP token minting and burning
+   - Calculates swap amounts and fees
 
-```shell
-$ forge build
-```
+3. **PoolFactory**: 
+   - Enables permissionless creation of new pools
+   - Registers newly created pools with the Vault
+   - Manages pool deployment and initialization
 
-### Test
+## Part 3: Contract Methods
 
-```shell
-$ forge test
-```
+### Vault Methods
 
-### Format
+#### User Methods:
+1. `swapExactIn(SwapParams memory params) external payable returns (uint256)`
+   - Performs a token swap with an exact input amount
+   - Supports multi-hop swaps (up to 3 hops)
 
-```shell
-$ forge fmt
-```
+2. `swapExactOut(SwapParams memory params) external payable returns (uint256)`
+   - Performs a token swap with an exact output amount
+   - Supports multi-hop swaps (up to 3 hops)
 
-### Gas Snapshots
+3. `addLiquidity(address _pool, uint256[] memory amounts, uint256 minToMint, uint256 deadline) external payable returns (uint256)`
+   - Adds liquidity to a specified pool
+   - Returns the amount of LP tokens minted
 
-```shell
-$ forge snapshot
-```
+4. `removeLiquidity(address _pool, uint256 lpTokenAmount, uint256[] memory minAmountsOut, uint256 deadline) external returns (uint256[] memory)`
+   - Removes liquidity from a specified pool
+   - Returns the amounts of tokens received
 
-### Anvil
+#### Admin Methods:
+1. `setGlobalPause(bool _pause) external onlyOwner`
+   - Pauses or unpauses all operations in the Vault
 
-```shell
-$ anvil
-```
+2. `setPoolLock(address _pool, bool _lock) external onlyOwner`
+   - Locks or unlocks a specific pool
 
-### Deploy
+3. `addFactory(address factory) external onlyOwner`
+   - Adds a new authorized factory
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+4. `removeFactory(address factory) external onlyOwner`
+   - Removes an authorized factory
 
-### Cast
+## Part 4: Forge Test Usage
 
-```shell
-$ cast <subcommand>
-```
+To run tests using Forge:
 
-### Help
+1. Install Forge if you haven't already:
+   ```
+   curl -L https://foundry.paradigm.xyz | bash
+   foundryup
+   ```
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+2. Install dependencies:
+   ```
+   forge install
+   ```
+
+3. Run tests:
+   ```
+   forge test
+   ```
+   
+For more information on Forge and its features, refer to the [Forge Book](https://book.getfoundry.sh/).
