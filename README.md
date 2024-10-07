@@ -62,6 +62,8 @@ The AMM consists of three main components:
 4. `removeFactory(address factory) external onlyOwner`
    - Removes an authorized factory
 
+note: The operation to delete the pool is not currently provided, considering that the pool does not manage funds independently, and therefore should not be deleted by the admin.
+
 ## Part 4: Forge Test Usage
 
 To run tests using Forge:
@@ -81,5 +83,5 @@ To run tests using Forge:
    ```
    forge test
    ```
-   
+
 For more information on Forge and its features, refer to the [Forge Book](https://book.getfoundry.sh/).
