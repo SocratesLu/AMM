@@ -3,30 +3,17 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IWETH.sol";
 import "./interfaces/IVault.sol";
+import "./interfaces/IVaultStructs.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "forge-std/Test.sol";
 
-contract VaultStorage is ReentrancyGuard {
+contract VaultStorage is ReentrancyGuard, IVaultStructs {
     IWETH public immutable WETH;
     address public constant ETH_ADDRESS = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     struct PoolTokenInfo {
         address[] tokens;
         uint256[] balances;
-    }
-
-    struct SingleSwap {
-        address pool;
-        uint256 tokenIndexIn;
-        uint256 tokenIndexOut;
-    }
-
-    struct SwapParams {
-        SingleSwap[] swaps;
-        uint256 tokenAmountIn;
-        uint256 minAmountOut;
-        uint256 deadline;
-        address user;
     }
 
     bool public globalPause;

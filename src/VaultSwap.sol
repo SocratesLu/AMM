@@ -14,13 +14,13 @@ contract VaultSwap is VaultStorage {
     using SafeERC20 for IERC20;
     using NormalizeAmount for uint256;
 
-    function swapExactIn(SwapParams memory params) external payable nonReentrant returns (uint256 tokenAmountOut) {
+    function swapExactIn(IVaultStructs.SwapParams memory params) external payable nonReentrant returns (uint256 tokenAmountOut) {
         if (block.timestamp > params.deadline) revert DeadlineExpired();
         if (params.swaps.length == 0) revert EmptySwapPath();
         if (params.swaps.length > 3) revert TooManySwaps();
 
-        SingleSwap memory firstSwap = params.swaps[0];
-        SingleSwap memory lastSwap = params.swaps[params.swaps.length - 1];
+        IVaultStructs.SingleSwap memory firstSwap = params.swaps[0];
+        IVaultStructs.SingleSwap memory lastSwap = params.swaps[params.swaps.length - 1];
 
         PoolTokenInfo memory firstTokenInfos = getPoolTokens(firstSwap.pool);
         address tokenInAddress = firstTokenInfos.tokens[firstSwap.tokenIndexIn];
@@ -28,8 +28,6 @@ contract VaultSwap is VaultStorage {
         // Handle ETH to WETH conversion if necessary
         if (tokenInAddress == ETH_ADDRESS) {
             require(msg.value == params.tokenAmountIn, "ETH amount mismatch");
-            WETH.deposit{value: params.tokenAmountIn}();
-            tokenInAddress = address(WETH);
         } else {
             IERC20(tokenInAddress).safeTransferFrom(params.user, address(this), params.tokenAmountIn);
         }
@@ -37,7 +35,7 @@ contract VaultSwap is VaultStorage {
         uint256 currentAmountIn = params.tokenAmountIn;
 
         for (uint256 i = 0; i < params.swaps.length; i++) {
-            SingleSwap memory currentSwap = params.swaps[i];
+                IVaultStructs.SingleSwap memory currentSwap = params.swaps[i];
 
             tokenAmountOut = _singleSwapExactIn(
                 currentSwap.pool,
@@ -57,7 +55,6 @@ contract VaultSwap is VaultStorage {
         PoolTokenInfo memory lastTokenInfos = getPoolTokens(lastSwap.pool);
         address tokenOutAddress = lastTokenInfos.tokens[lastSwap.tokenIndexOut];
         if (tokenOutAddress == ETH_ADDRESS) {
-            WETH.withdraw(tokenAmountOut);
             (bool success, ) = params.user.call{value: tokenAmountOut}("");
             require(success, "ETH transfer failed");
         } else {
@@ -67,13 +64,13 @@ contract VaultSwap is VaultStorage {
         return tokenAmountOut;
     }
 
-    function swapExactOut(SwapParams memory params) external payable nonReentrant returns (uint256 tokenAmountIn) {
+    function swapExactOut(IVaultStructs.SwapParams memory params) external payable nonReentrant returns (uint256 tokenAmountIn) {
         if (block.timestamp > params.deadline) revert DeadlineExpired();
         if (params.swaps.length == 0) revert EmptySwapPath();
         if (params.swaps.length > 3) revert TooManySwaps();
 
-        SingleSwap memory firstSwap = params.swaps[0];
-        SingleSwap memory lastSwap = params.swaps[params.swaps.length - 1];
+        IVaultStructs.SingleSwap memory firstSwap = params.swaps[0];
+        IVaultStructs.SingleSwap memory lastSwap = params.swaps[params.swaps.length - 1];
 
         PoolTokenInfo memory lastTokenInfos = getPoolTokens(lastSwap.pool);
         address tokenOutAddress = lastTokenInfos.tokens[lastSwap.tokenIndexOut];
@@ -81,7 +78,7 @@ contract VaultSwap is VaultStorage {
         uint256 currentAmountOut = params.minAmountOut;
 
         for (uint256 i = params.swaps.length; i > 0; i--) {
-            SingleSwap memory currentSwap = params.swaps[i - 1];
+            IVaultStructs.SingleSwap memory currentSwap = params.swaps[i - 1];
 
             tokenAmountIn = _singleSwapExactOut(
                 currentSwap.pool,
@@ -103,19 +100,17 @@ contract VaultSwap is VaultStorage {
         // Handle ETH to WETH conversion if necessary
         if (tokenInAddress == ETH_ADDRESS) {
             require(msg.value >= tokenAmountIn, "Insufficient ETH sent");
-            WETH.deposit{value: tokenAmountIn}();
             // Refund excess ETH
             if (msg.value > tokenAmountIn) {
                 (bool success, ) = params.user.call{value: msg.value - tokenAmountIn}("");
                 require(success, "ETH refund failed");
             }
         } else {
-            IERC20(tokenInAddress).safeTransferFrom(params.user, address(this), tokenAmountIn);
+            IERC20(tokenInAddress).safeTransferFrom(msg.sender, address(this), tokenAmountIn);
         }
 
         // Handle WETH to ETH conversion if necessary
         if (tokenOutAddress == ETH_ADDRESS) {
-            WETH.withdraw(params.minAmountOut);
             (bool success, ) = params.user.call{value: params.minAmountOut}("");
             require(success, "ETH transfer failed");
         } else {
@@ -132,14 +127,20 @@ contract VaultSwap is VaultStorage {
         uint256 tokenAmountIn
     ) internal poolLived(_pool) returns (uint256 tokenAmountOut) {
         PoolTokenInfo memory tokenInfos = getPoolTokens(_pool);
-        IERC20 tokenIn = IERC20(tokenInfos.tokens[tokenIndexIn]);
-        IERC20 tokenOut = IERC20(tokenInfos.tokens[tokenIndexOut]);
+        address tokenIn = tokenInfos.tokens[tokenIndexIn];
+        address tokenOut = tokenInfos.tokens[tokenIndexOut];
+        {
+        uint8 tokenInDecimals = tokenIn == ETH_ADDRESS ? 18 : IERC20Metadata(tokenIn).decimals();
+        uint8 tokenOutDecimals = tokenOut == ETH_ADDRESS ? 18 : IERC20Metadata(tokenOut).decimals();
 
-        tokenIn.safeTransferFrom(msg.sender, address(this), tokenAmountIn);
+        if (tokenIn != ETH_ADDRESS) {
+            IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), tokenAmountIn);
+        }
         
         uint256[] memory tokenScaled18Amount = new uint256[](tokenInfos.tokens.length);
         for (uint256 i = 0; i < tokenInfos.tokens.length; i++) {
-            tokenScaled18Amount[i] = tokenInfos.balances[i].normalizeAmount(IERC20Metadata(tokenInfos.tokens[i]).decimals());
+            uint8 decimals = tokenInfos.tokens[i] == ETH_ADDRESS ? 18 : IERC20Metadata(tokenInfos.tokens[i]).decimals();
+            tokenScaled18Amount[i] = tokenInfos.balances[i].normalizeAmount(decimals);
         }
 
         IBasePool.SwapRequest memory request = IBasePool.SwapRequest({
@@ -147,18 +148,19 @@ contract VaultSwap is VaultStorage {
             tokenScaled18Amount: tokenScaled18Amount,
             tokenInIndex: tokenIndexIn,
             tokenOutIndex: tokenIndexOut,
-            scaled18Amount: tokenAmountIn.normalizeAmount(IERC20Metadata(tokenInfos.tokens[tokenIndexIn]).decimals())
+            scaled18Amount: tokenAmountIn.normalizeAmount(tokenInDecimals)
         });
 
         IBasePool pool = IBasePool(_pool);
         uint256 scaled18AmountOut = pool.onSwap(request);
         
-        tokenAmountOut = scaled18AmountOut.denormalizeAmount(IERC20Metadata(tokenInfos.tokens[tokenIndexOut]).decimals());
+        tokenAmountOut = scaled18AmountOut.denormalizeAmount(tokenOutDecimals);
+        }
 
-        poolTokenBalances[_pool][address(tokenOut)] += tokenAmountOut;
-        poolTokenBalances[_pool][address(tokenIn)] -= tokenAmountIn;
+        poolTokenBalances[_pool][tokenOut] += tokenAmountOut;
+        poolTokenBalances[_pool][tokenIn] -= tokenAmountIn;
 
-        emit Swap(_pool, address(tokenIn), address(tokenOut), tokenAmountIn, tokenAmountOut);
+        emit Swap(_pool, tokenIn, tokenOut, tokenAmountIn, tokenAmountOut);
 
         return tokenAmountOut;
     }
@@ -170,12 +172,16 @@ contract VaultSwap is VaultStorage {
         uint256 tokenAmountOut
     ) internal poolLived(_pool) returns (uint256 tokenAmountIn) {
         PoolTokenInfo memory tokenInfos = getPoolTokens(_pool);
-        IERC20 tokenIn = IERC20(tokenInfos.tokens[tokenIndexIn]);
-        IERC20 tokenOut = IERC20(tokenInfos.tokens[tokenIndexOut]);
+        address tokenIn = tokenInfos.tokens[tokenIndexIn];
+        address tokenOut = tokenInfos.tokens[tokenIndexOut];
+        {
+        uint8 tokenInDecimals = tokenIn == ETH_ADDRESS ? 18 : IERC20Metadata(tokenIn).decimals();
+        uint8 tokenOutDecimals = tokenOut == ETH_ADDRESS ? 18 : IERC20Metadata(tokenOut).decimals();
         
         uint256[] memory tokenScaled18Amount = new uint256[](tokenInfos.tokens.length);
         for (uint256 i = 0; i < tokenInfos.tokens.length; i++) {
-            tokenScaled18Amount[i] = tokenInfos.balances[i].normalizeAmount(IERC20Metadata(tokenInfos.tokens[i]).decimals());
+            uint8 decimals = tokenInfos.tokens[i] == ETH_ADDRESS ? 18 : IERC20Metadata(tokenInfos.tokens[i]).decimals();
+            tokenScaled18Amount[i] = tokenInfos.balances[i].normalizeAmount(decimals);
         }
 
         IBasePool.SwapRequest memory request = IBasePool.SwapRequest({
@@ -183,18 +189,19 @@ contract VaultSwap is VaultStorage {
             tokenScaled18Amount: tokenScaled18Amount,
             tokenInIndex: tokenIndexIn,
             tokenOutIndex: tokenIndexOut,
-            scaled18Amount: tokenAmountOut.normalizeAmount(IERC20Metadata(tokenInfos.tokens[tokenIndexOut]).decimals())
+            scaled18Amount: tokenAmountOut.normalizeAmount(tokenOutDecimals)
         });
 
         IBasePool pool = IBasePool(_pool);
         uint256 scaled18AmountIn = pool.onSwap(request);
         
-        tokenAmountIn = scaled18AmountIn.denormalizeAmount(IERC20Metadata(tokenInfos.tokens[tokenIndexIn]).decimals());
+        tokenAmountIn = scaled18AmountIn.denormalizeAmount(tokenInDecimals);
+        }
 
-        poolTokenBalances[_pool][address(tokenOut)] += tokenAmountOut;
-        poolTokenBalances[_pool][address(tokenIn)] -= tokenAmountIn;
+        poolTokenBalances[_pool][tokenOut] -= tokenAmountOut;
+        poolTokenBalances[_pool][tokenIn] += tokenAmountIn;
 
-        emit Swap(_pool, address(tokenIn), address(tokenOut), tokenAmountIn, tokenAmountOut);
+        emit Swap(_pool, tokenIn, tokenOut, tokenAmountIn, tokenAmountOut);
 
         return tokenAmountIn;
     }

@@ -55,12 +55,6 @@ contract WeightedMathHelper is Test {
     }
 
     function calculateInvariantUp(uint256[] memory scaled18Amounts, uint256[] memory weights) external pure returns (uint256) {
-        console.log("scaled18Amounts", scaled18Amounts[0]);
-        console.log("scaled18Amounts", scaled18Amounts[1]);
-        console.log("scaled18Amounts", scaled18Amounts[2]);
-        console.log("weights", weights[0]);
-        console.log("weights", weights[1]);
-        console.log("weights", weights[2]);
         return WeightedMath._calculateInvariantUp(scaled18Amounts, weights);
     }
 
