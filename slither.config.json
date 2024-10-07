@@ -1,0 +1,22 @@
+{
+    "filter_paths": "lib",
+    "detectors_to_exclude": "low-level-calls,naming-convention,solc-version,too-many-digits",
+    "solc_version": "0.8.25",
+    "printer": [
+        "function-summary",
+        "inheritance",
+        "contract-summary"
+    ],
+    "solc_remaps": [
+        "@openzeppelin/contracts=lib/openzeppelin-contracts",
+        "@openzeppelin/contracts-upgradeable=lib/openzeppelin-contracts-upgradeable",
+        "lib=lib"
+    ],
+    "color": true,
+    "json": null,
+    "summary": true,
+    "exclude_informational": true,
+    "exclude_low": false,
+    "exclude_medium": false,
+    "exclude_high": false
+}

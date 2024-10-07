@@ -31,7 +31,7 @@ contract WeightedPoolFactory is Ownable2Step {
         if (swapFee > 1e17) revert InvalidSwapFee();
         if (tokens.length != weights.length) revert InvalidTokens();
 
-        bytes32 salt = keccak256(abi.encodePacked(msg.sender, tokens, weights, swapFee, block.timestamp));
+        bytes32 salt = keccak256(abi.encode(tokens, weights, swapFee));
 
         bytes memory bytecode = abi.encodePacked(
             type(WeightedPool).creationCode,
@@ -63,7 +63,7 @@ contract WeightedPoolFactory is Ownable2Step {
         uint256[] memory weights,
         uint256 swapFee
     ) public view returns (address) {
-        bytes32 salt = keccak256(abi.encodePacked(msg.sender, tokens, weights, swapFee, block.timestamp));
+        bytes32 salt = keccak256(abi.encode(tokens, weights, swapFee));
         bytes memory bytecode = abi.encodePacked(
             type(WeightedPool).creationCode,
             abi.encode(address(vault), weights, swapFee)

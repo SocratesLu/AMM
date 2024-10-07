@@ -29,7 +29,7 @@ contract VaultSwap is VaultStorage {
         if (tokenInAddress == ETH_ADDRESS) {
             require(msg.value == params.tokenAmountIn, "ETH amount mismatch");
         } else {
-            IERC20(tokenInAddress).safeTransferFrom(params.user, address(this), params.tokenAmountIn);
+            IERC20(tokenInAddress).safeTransferFrom(msg.sender, address(this), params.tokenAmountIn);
         }
 
         uint256 currentAmountIn = params.tokenAmountIn;
